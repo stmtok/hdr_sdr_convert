@@ -1,0 +1,35 @@
+PODS:
+  - Flutter (1.0.0)
+  - hdrsdr (0.0.1):
+    - Flutter
+  - integration_test (0.0.1):
+    - Flutter
+  - photo_manager (3.7.1):
+    - Flutter
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - hdrsdr (from `.symlinks/plugins/hdrsdr/ios`)
+  - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - photo_manager (from `.symlinks/plugins/photo_manager/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  hdrsdr:
+    :path: ".symlinks/plugins/hdrsdr/ios"
+  integration_test:
+    :path: ".symlinks/plugins/integration_test/ios"
+  photo_manager:
+    :path: ".symlinks/plugins/photo_manager/ios"
+
+SPEC CHECKSUMS:
+  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  hdrsdr: 089fe23a30a52f52a8c571a67e408138e70b9220
+  integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
+  photo_manager: 81954a1bf804b6e882d0453b3b6bc7fad7b47d3d
+
+PODFILE CHECKSUM: e30f02f9d1c72c47bb6344a0a748c9d268180865
+
+COCOAPODS: 1.16.2
