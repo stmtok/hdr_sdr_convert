@@ -38,24 +38,15 @@ public class HdrsdrPlugin: NSObject, FlutterPlugin {
         guard let ciImage = CIImage(data: data) else {
             throw NSError(domain: "enc", code: -1)
         }
-        
-        // 1. メタデータからExif Orientationを取得
-        // CIImageのプロパティから向き情報を取得するのが最もシンプル
-        let exifOrientation = ciImage.properties[kCGImagePropertyOrientation as String] as? NSNumber ?? 1
-        
-        // 2. HDR/SDRの判定
-        // すでにsRGBであれば、そのままのDataを返す
+
         if let colorSpace = ciImage.colorSpace, colorSpace.name == CGColorSpace.sRGB {
             print("Image is already SDR (sRGB). Returning original data.")
             return data
         }
-        // 3. Exif Orientationに基づいてCIImageを回転
-        // oriented(forExifOrientation:) メソッドでCIImageを回転させる
+        
+        let exifOrientation = ciImage.properties[kCGImagePropertyOrientation as String] as? NSNumber ?? 1
         let orientedCIImage = ciImage.oriented(forExifOrientation: exifOrientation.int32Value)
-        
-        // ここからHDRからSDRへの変換処理
-        
-        // 4. CIContextとsRGBカラー空間の設定
+
         guard let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
             throw NSError(domain: "enc", code: -3)
         }
