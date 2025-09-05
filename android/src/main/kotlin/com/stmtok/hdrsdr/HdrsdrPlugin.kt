@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ColorSpace
 import android.graphics.ImageDecoder
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.os.Build
 import androidx.annotation.RequiresApi
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -11,6 +13,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 
@@ -59,6 +62,10 @@ class HdrsdrPlugin : FlutterPlugin, MethodCallHandler {
  */
 
 fun convertHDRtoSDR(data: ByteArray, jpegQuality: Int): ByteArray {
+    val orientation = runCatching {
+        ExifInterface(ByteArrayInputStream(data))
+            .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+    }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         val source = ImageDecoder.createSource(ByteBuffer.wrap(data))
         val sdrBitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
@@ -72,27 +79,50 @@ fun convertHDRtoSDR(data: ByteArray, jpegQuality: Int): ByteArray {
         sdrBitmap.compress(Bitmap.CompressFormat.JPEG, jpegQuality, outputStream)
 
         return outputStream.toByteArray()
-    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    } else {
         val opts = BitmapFactory.Options().apply {
-            inPreferredColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                inPreferredColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)
+            }
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
         val decoded = BitmapFactory.decodeByteArray(data, 0, data.size, opts) ?: return data
-        return ByteArrayOutputStream().use { bos ->
-            decoded.compress(Bitmap.CompressFormat.JPEG, jpegQuality, bos)
-            decoded.recycle()
-            bos.toByteArray()
-        }
-    } else {
-        val decoded = BitmapFactory.decodeByteArray(data, 0, data.size) ?: return data
         val argb = if (decoded.config != Bitmap.Config.ARGB_8888)
             decoded.copy(Bitmap.Config.ARGB_8888, false).also { decoded.recycle() }
         else decoded
 
+        val rotated = applyExifOrientation(argb, orientation).also {
+            if (it !== argb) argb.recycle()
+        }
         return ByteArrayOutputStream().use { bos ->
-            argb.compress(Bitmap.CompressFormat.JPEG, jpegQuality.coerceIn(0, 100), bos)
-            argb.recycle()
+            rotated.compress(Bitmap.CompressFormat.JPEG, jpegQuality, bos)
+            rotated.recycle()
             bos.toByteArray()
         }
+    }
+}
+
+fun applyExifOrientation(src: Bitmap, o: Int): Bitmap {
+    val m = Matrix()
+    when (o) {
+        ExifInterface.ORIENTATION_ROTATE_90 -> m.postRotate(90f)
+        ExifInterface.ORIENTATION_ROTATE_180 -> m.postRotate(180f)
+        ExifInterface.ORIENTATION_ROTATE_270 -> m.postRotate(270f)
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> m.preScale(-1f, 1f)
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> m.preScale(1f, -1f)
+        ExifInterface.ORIENTATION_TRANSPOSE -> {
+            m.preScale(-1f, 1f); m.postRotate(270f)
+        }
+
+        ExifInterface.ORIENTATION_TRANSVERSE -> {
+            m.preScale(-1f, 1f); m.postRotate(90f)
+        }
+
+        else -> return src
+    }
+    return try {
+        Bitmap.createBitmap(src, 0, 0, src.width, src.height, m, true)
+    } catch (_: Throwable) {
+        src
     }
 }
